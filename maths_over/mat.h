@@ -43,6 +43,16 @@ public:
 
     };
 
+    mat(const mat<T> & mat) {
+        this->cols = mat.cols;
+        this->rows = mat.rows;
+        this->size = mat.size;
+        this->data = std::vector<T>( mat.size,0);
+        for (int i = 0; i < mat.size ; ++i) {
+            data[i]=mat.data[i];
+        }
+    }
+
     const unsigned int &getRows() const {
         return rows;
 
@@ -202,7 +212,7 @@ public:
         return matres;
     }
     mat inverse_with_lu(){
-        mat matres = mat();
+        mat matres ;
         if (rows != cols) {
             helper_class::display_error_syncronized_ln("Inverse: ");
             return matres;
@@ -264,9 +274,50 @@ public:
         return  matres;
 
     }
-    mat inverse_nm_with_lu(){
+    mat inverse_nm_with_lu_distributed(bool & is_left,int tag ,atomic_bool *available_slots, computing_client **clients,
+                                       sync_queue<vector<byte >> &multiplication_message_queue ){
         mat matres;
         mat trans = get_transpose();
+
+        if(cols>rows){
+            mat res = distributed_multiply(tag,trans,available_slots,clients,multiplication_message_queue).inverse_with_lu();
+            if( res.getSize()!=0) {
+                is_left = false;
+                matres = trans.distributed_multiply(tag,res,available_slots,clients,multiplication_message_queue);
+            }
+        }
+        else{
+
+            mat res1 =trans. distributed_multiply(tag,(*this),available_slots,clients,multiplication_message_queue).inverse_with_lu();
+            if( res1.getSize()!=0){
+                is_left= true;
+                matres = res1. distributed_multiply(tag,trans,available_slots,clients,multiplication_message_queue);
+
+            }
+        }
+        return matres;
+    }
+    mat inverse_nm_with_lu(bool & is_left){
+        mat matres;
+        mat trans = get_transpose();
+
+        if(cols>rows){
+            mat res = multiply(trans).inverse_with_lu();
+            if( res.getSize()!=0) {
+                is_left = false;
+                matres = trans.multiply(res);
+            }
+        }
+        else{
+
+            mat res1 =trans.multiply((*this)).inverse_with_lu();
+            if( res1.getSize()!=0){
+                is_left= true;
+                matres = res1.multiply(trans);
+
+            }
+        }
+        return matres;
     }
 private:
 

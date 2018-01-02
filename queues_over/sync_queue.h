@@ -37,7 +37,11 @@ public:
         mlock.unlock();
         cond_.notify_one();
     }
-
+    void clear()
+    {
+        std::queue<T> empty;
+        std::swap( queue_, empty );
+    }
     sync_queue() = default;
 
     sync_queue(const sync_queue &) = delete;            // disable copying
